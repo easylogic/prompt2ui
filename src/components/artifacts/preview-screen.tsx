@@ -7,6 +7,9 @@ import * as phosphorIcons from "@phosphor-icons/react";
 import * as recharts from "recharts";
 import * as shadcnComponents from "@/components/ui";
 import * as datefns from "date-fns";
+import * as THREE from 'three';
+import * as Fiber from '@react-three/fiber';
+import * as Drei from '@react-three/drei';
 
 interface PreviewScreenProps {
   code: string;
@@ -61,23 +64,14 @@ const importToVariablePlugin = ({ types: t }: any) => ({
               )
             );
           } else if (t.isImportSpecifier(specifier)) {
-            if (path.node.source.value === "react") {
-              return t.variableDeclarator(
-                specifier.local,
-                t.memberExpression(
-                  t.memberExpression(
-                    t.identifier("scope"),
-                    t.identifier("React")
-                  ),
-                  specifier.imported
-                )
-              );
-            } else {
-              return t.variableDeclarator(
-                specifier.local,
-                t.memberExpression(t.identifier("scope"), specifier.imported)
-              );
-            }
+
+            return t.variableDeclarator(
+              specifier.local,
+              t.memberExpression(
+                t.identifier("scope"),
+                specifier.imported
+              )
+            );
           }
           return null;
         })
@@ -86,18 +80,38 @@ const importToVariablePlugin = ({ types: t }: any) => ({
       path.replaceWith(t.variableDeclaration("const", declarations));
     },
     ExportDefaultDeclaration(path: any) {
-      path.replaceWith(
-        t.expressionStatement(
-          t.assignmentExpression(
-            "=",
-            t.memberExpression(
-              t.identifier("exports"),
-              t.identifier("default")
-            ),
-            path.node.declaration
+      const declaration = path.node.declaration;
+      if (t.isFunctionDeclaration(declaration)) {
+        // If it's a function declaration, we need to split it into a function declaration and an export
+        const functionName = declaration.id ? declaration.id.name : 'default';
+        path.replaceWithMultiple([
+          declaration,
+          t.expressionStatement(
+            t.assignmentExpression(
+              "=",
+              t.memberExpression(
+                t.identifier("exports"),
+                t.identifier("default")
+              ),
+              t.identifier(functionName)
+            )
           )
-        )
-      );
+        ]);
+      } else {
+        // For other types of declarations, we can use the original logic
+        path.replaceWith(
+          t.expressionStatement(
+            t.assignmentExpression(
+              "=",
+              t.memberExpression(
+                t.identifier("exports"),
+                t.identifier("default")
+              ),
+              declaration
+            )
+          )
+        );
+      }
     },
   },
 });
@@ -111,21 +125,29 @@ export function PreviewScreen({ code }: PreviewScreenProps) {
 
     const compileAndRender = async () => {
       try {
+        console.log(code);
         const transpiledCode = Babel.transform(code, {
           presets: ["react"],
           plugins: [importToVariablePlugin],
         }).code;
+
+        console.log(transpiledCode);
 
         const scope: any = {
           React: {
             ...React,
             useState: React.useState,
             useEffect: React.useEffect,
+            useRef: React.useRef,
           },
+          ...React,
           ...shadcnComponents,
           ...phosphorIcons,
           ...recharts,
           ...datefns,
+          ...THREE,
+          ...Fiber,
+          ...Drei,
         };
 
         const fullCode = `

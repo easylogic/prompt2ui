@@ -5,6 +5,9 @@ import { LiveEditor, LiveError, LivePreview, LiveProvider } from "react-live";
 import * as phosphorIcons from "@phosphor-icons/react";
 import * as recharts from "recharts";
 import * as datefns from "date-fns";
+import * as THREE from "three";
+import * as Fiber from '@react-three/fiber';
+import * as Drei from '@react-three/drei';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import * as shadcnComponents from "@/components/ui";
 
@@ -23,6 +26,7 @@ export function Playground({ initialCode, isCodeLoading }: PlaygroundProps) {
     ...phosphorIcons,
     ...recharts,
     ...datefns,
+    ...THREE
   };
 
   // This is a wrapper component that will be used by LivePreview
